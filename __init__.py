@@ -21,11 +21,20 @@ from binaryninja import PluginCommand
 # usable from the command palette so the user can recover.
 from .install import InstallRequirementsTask
 
-PluginCommand.register(
+
+def _register_global_command(name, description, action):
+    # PluginCommand.register is BinaryView-scoped and stays disabled while no
+    # file is open; register_global (Binary Ninja 6.0+) needs no view.
+    if hasattr(PluginCommand, 'register_global'):
+        PluginCommand.register_global(name, description, action, lambda: True)
+    else:
+        PluginCommand.register(name, description, lambda _: action(), lambda _: True)
+
+
+_register_global_command(
     'IPyBinja\\Install Plugin Requirements',
     "Install ipybinja's requirements.txt into Binary Ninja's site-packages",
-    lambda _: InstallRequirementsTask().start(),
-    lambda _: True,
+    lambda: InstallRequirementsTask().start(),
 )
 
 
@@ -292,11 +301,10 @@ try:
         lambda _: IPythonWidget('IPython Console')
     )
 
-    PluginCommand.register(
+    _register_global_command(
         'IPyBinja\\Install Jupyter Kernel',
         'Install jupyter kernel configuration for Binary Ninja',
-        lambda _: InstallKernelSpecTask().start(),
-        lambda _: True
+        lambda: InstallKernelSpecTask().start(),
     )
 
 except ImportError as e:
